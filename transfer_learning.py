@@ -264,11 +264,13 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    # train
     args = parse_args()
-
     train(args)
     
-#     model_dir = '/opt/ml/model'
+    # inference
+#     model_dir = '../'
 #     input_data = mx.ndarray.array(np.zeros(shape=(512, 512, 3)))
 #     model = model_fn(model_dir)
 #     result = predict_fn(input_data, model)
+#     print(result)
