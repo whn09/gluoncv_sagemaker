@@ -146,10 +146,17 @@ def train(args):
 
     finetune_net.save_parameters(os.path.join(args.model_dir, 'model-0000.params'))
     
-    os.makedirs(os.path.join(args.model_dir, 'code'))
-    shutil.copy('/opt/ml/code/transfer_learning.py', os.path.join(args.model_dir, 'code'))
-#     shutil.copy('/opt/ml/code/requirements.txt', args.model_dir)
-    with open(os.path.join(args.model_dir, 'code', 'requirements.txt'), 'w') as fout:
+    model_code_dir = os.path.join(args.model_dir, 'code')
+    os.makedirs(model_code_dir)
+    shutil.copy('/opt/ml/code/transfer_learning.py', model_code_dir)
+    command = 'sed -i \'s/CLASSES/'+str(classes)+'/g\' '+os.path.join(model_code_dir, 'transfer_learning.py')
+    print('command:', command)
+    os.system(command)
+    command = 'sed -i \'s/MODEL_NAME/'+str(model_name)+'/g\' '+os.path.join(model_code_dir, 'transfer_learning.py')
+    print('command:', command)
+    os.system(command)
+#     shutil.copy('/opt/ml/code/requirements.txt', model_code_dir)
+    with open(os.path.join(model_code_dir, 'requirements.txt'), 'w') as fout:
         fout.write('gluoncv\n')
 
     
@@ -175,8 +182,8 @@ def get_embedding_advance(input_pic, seq_net, use_layer):
 
     
 def model_fn(model_dir):
-#     classes = 23
-    model_name = 'ResNet50_v2'
+    classes = CLASSES  # 23
+    model_name = 'MODEL_NAME'  # 'ResNet50_v2'
     
     ctx = [mx.cpu()]
     
@@ -186,16 +193,13 @@ def model_fn(model_dir):
     pretrained = True if saved_params == '' else False
 
     if not pretrained:
-#         classes = [i for i in range(classes)]
-        net = get_model(model_name, pretrained=pretrained)  # , classes=len(classes)
+        net = get_model(model_name, classes=classes, pretrained=pretrained)
         net.load_parameters(saved_params)
     else:
         net = get_model(model_name, pretrained=pretrained)
-#         classes = net.classes
 
     net.collect_params().reset_ctx(ctx)
 
-#     print(len(net.features))
     seq_net = nn.Sequential()
     for i in range(len(net.features)):
         seq_net.add(net.features[i])
