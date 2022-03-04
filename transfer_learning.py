@@ -175,7 +175,7 @@ def get_embedding_advance(input_pic, seq_net, use_layer):
 
     
 def model_fn(model_dir):
-    classes = 23
+#     classes = 23
     model_name = 'ResNet50_v2'
     
     ctx = [mx.cpu()]
@@ -186,12 +186,12 @@ def model_fn(model_dir):
     pretrained = True if saved_params == '' else False
 
     if not pretrained:
-        classes = [i for i in range(classes)]
-        net = get_model(model_name, classes=len(classes), pretrained=pretrained)
+#         classes = [i for i in range(classes)]
+        net = get_model(model_name, pretrained=pretrained)  # , classes=len(classes)
         net.load_parameters(saved_params)
     else:
         net = get_model(model_name, pretrained=pretrained)
-        classes = net.classes
+#         classes = net.classes
 
     net.collect_params().reset_ctx(ctx)
 
