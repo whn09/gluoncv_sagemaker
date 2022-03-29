@@ -39,6 +39,7 @@ def train(args):
     per_device_batch_size = args.batch_size  # 32
     momentum = args.momentum  # 0.9
     wd = args.wd  # 0.0001
+    image_size = args.image_size  # 224
 
     lr_factor = 0.75
     lr_steps = [10, 20, 30, np.inf]
@@ -53,7 +54,7 @@ def train(args):
     lighting_param = 0.1
 
     transform_train = transforms.Compose([
-        transforms.RandomResizedCrop(224),
+        transforms.RandomResizedCrop(image_size),
         transforms.RandomFlipLeftRight(),
         transforms.RandomColorJitter(brightness=jitter_param, contrast=jitter_param,
                                      saturation=jitter_param),
@@ -64,7 +65,7 @@ def train(args):
 
     transform_test = transforms.Compose([
         transforms.Resize(256),
-        transforms.CenterCrop(224),
+        transforms.CenterCrop(image_size),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
@@ -149,13 +150,14 @@ def train(args):
     model_code_dir = os.path.join(args.model_dir, 'code')
     os.makedirs(model_code_dir)
     shutil.copy('/opt/ml/code/transfer_learning.py', model_code_dir)
-    command = 'sed -i \'s/CLASSES/'+str(classes)+'/g\' '+os.path.join(model_code_dir, 'transfer_learning.py')
-    print('command:', command)
-    os.system(command)
-    command = 'sed -i \'s/MODEL_NAME/'+str(model_name)+'/g\' '+os.path.join(model_code_dir, 'transfer_learning.py')
-    print('command:', command)
-    os.system(command)
+#     command = 'sed -i \'s/CLASSES/'+str(classes)+'/g\' '+os.path.join(model_code_dir, 'transfer_learning.py')
+#     print('command:', command)
+#     os.system(command)
+#     command = 'sed -i \'s/MODEL_NAME/'+str(model_name)+'/g\' '+os.path.join(model_code_dir, 'transfer_learning.py')
+#     print('command:', command)
+#     os.system(command)
 #     shutil.copy('/opt/ml/code/requirements.txt', model_code_dir)
+    shutil.copy('/opt/ml/input/config/hyperparameters.json', args.model_dir)
     with open(os.path.join(model_code_dir, 'requirements.txt'), 'w') as fout:
         fout.write('gluoncv\n')
 
@@ -182,8 +184,15 @@ def get_embedding_advance(input_pic, seq_net, use_layer):
 
     
 def model_fn(model_dir):
-    classes = CLASSES  # 23
-    model_name = 'MODEL_NAME'  # 'ResNet50_v2'
+#     classes = CLASSES  # 23
+#     model_name = 'MODEL_NAME'  # 'ResNet50_v2'
+
+    args = json.load(open(os.path.join(model_dir, 'hyperparameters.json'), 'r'))
+#     print('args:', args)
+    classes = int(args['classes'])
+    model_name = args['model-name'].replace('"', '')  # 'ResNet50_v2'
+#     print('classes:', classes)
+#     print('model_name:', model_name)
     
     ctx = [mx.cpu()]
     
@@ -191,6 +200,7 @@ def model_fn(model_dir):
     if not os.path.exists(saved_params):
         saved_params = ''
     pretrained = True if saved_params == '' else False
+#     print('pretrained:', pretrained)
 
     if not pretrained:
         net = get_model(model_name, classes=classes, pretrained=pretrained)
@@ -200,11 +210,15 @@ def model_fn(model_dir):
 
     net.collect_params().reset_ctx(ctx)
 
-    seq_net = nn.Sequential()
-    for i in range(len(net.features)):
-        seq_net.add(net.features[i])
+#     # Image Embedding
+#     seq_net = nn.Sequential()
+#     for i in range(len(net.features)):
+#         seq_net.add(net.features[i])
         
-    return seq_net
+#     return seq_net
+
+    # Image Classification
+    return net
 
 
 def input_fn(request_body, request_content_type):
@@ -228,8 +242,15 @@ def input_fn(request_body, request_content_type):
 
 def predict_fn(input_data, model):
 #     print('[DEBUG] input_data type:', type(input_data), input_data.shape)
-    # TODO input_data should be (w,h,3)
-    pred = get_embedding_advance(input_data, model, use_layer=12)
+
+#     # Image Embedding
+#     pred = get_embedding_advance(input_data, model, use_layer=12)
+
+    # Image Classification
+    ctx = [mx.cpu()]
+    img = transform_eval(input_data).copyto(ctx[0])
+    pred = model(img).asnumpy()
+    
 #     print('[DEBUG] pred:', pred)
     result = pred.tolist()
 #     print('[DEBUG] result:', result)
@@ -255,6 +276,7 @@ def parse_args():
     parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--num-workers", type=int, default=8)
     parser.add_argument("--model-name", type=str, default='ResNet50_v2')
+    parser.add_argument("--image-size", type=int, default=224)
 
     parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
     parser.add_argument("--train", type=str, default=os.environ["SM_CHANNEL_TRAINING"])
@@ -272,8 +294,8 @@ if __name__ == "__main__":
     args = parse_args()
     train(args)
     
-    # inference
-#     model_dir = '../'
+#     # inference
+#     model_dir = './model'
 #     input_data = mx.ndarray.array(np.zeros(shape=(512, 512, 3)))
 #     model = model_fn(model_dir)
 #     result = predict_fn(input_data, model)
