@@ -17,6 +17,10 @@ from gluoncv.utils import makedirs
 from gluoncv.model_zoo import get_model
 from gluoncv.data.transforms.presets.imagenet import transform_eval
 
+import base64
+import skimage.io
+from io import BytesIO
+
 
 def test(net, val_data, ctx):
     metric = mx.metric.Accuracy()
@@ -160,6 +164,7 @@ def train(args):
     shutil.copy('/opt/ml/input/config/hyperparameters.json', args.model_dir)
     with open(os.path.join(model_code_dir, 'requirements.txt'), 'w') as fout:
         fout.write('gluoncv\n')
+        fout.write('scikit-image==0.16.2\n')
 
     
 def get_embedding_advance(input_pic, seq_net, use_layer):
@@ -223,20 +228,23 @@ def model_fn(model_dir):
 
 def input_fn(request_body, request_content_type):
 #     print('[DEBUG] request_body:', type(request_body))
-#     print('[DEBUG] request_content_type:', request_content_type)
+    print('[DEBUG] request_content_type:', request_content_type)
     
     """An input_fn that loads a pickled tensor"""
     if request_content_type == 'application/x-npy':
-        from io import BytesIO
         np_bytes = BytesIO(request_body)
         return mx.ndarray.array(np.load(np_bytes, allow_pickle=True))
     elif request_content_type == 'application/json':
         data = json.loads(request_body)
         return mx.ndarray.array(data)
+    elif request_content_type == 'application/string':
+        data = base64.b64decode(request_body)
+        image = skimage.io.imread(data, plugin='imageio')
+        return mx.ndarray.array(image)
     else:
         # Handle other content-types here or raise an Exception
         # if the content type is not supported.  
-        return request_body
+        pass
     return request_body
 
 
