@@ -286,13 +286,13 @@ def parse_args():
     parser.add_argument("--model-name", type=str, default='ResNet50_v2')
     parser.add_argument("--image-size", type=int, default=224)
 
-    parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
-    parser.add_argument("--train", type=str, default=os.environ["SM_CHANNEL_TRAINING"])
-    parser.add_argument("--val", type=str, default=os.environ["SM_CHANNEL_VALIDATION"])
-    parser.add_argument("--test", type=str, default=os.environ["SM_CHANNEL_TEST"])
+    parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"] if "SM_MODEL_DIR" in os.environ else "model")
+    parser.add_argument("--train", type=str, default=os.environ["SM_CHANNEL_TRAINING"] if "SM_CHANNEL_TRAINING" in os.environ else "data/train")
+    parser.add_argument("--val", type=str, default=os.environ["SM_CHANNEL_VALIDATION"] if "SM_CHANNEL_VALIDATION" in os.environ else "data/val")
+    parser.add_argument("--test", type=str, default=os.environ["SM_CHANNEL_TEST"] if "SM_CHANNEL_TEST" in os.environ else "data/test")
 
-    parser.add_argument("--current-host", type=str, default=os.environ["SM_CURRENT_HOST"])
-    parser.add_argument("--hosts", type=list, default=json.loads(os.environ["SM_HOSTS"]))
+    parser.add_argument("--current-host", type=str, default=os.environ["SM_CURRENT_HOST"] if "SM_CURRENT_HOST" in os.environ else "localhost")
+    parser.add_argument("--hosts", type=list, default=json.loads(os.environ["SM_HOSTS"] if "SM_HOSTS" in os.environ else '["localhost"]'))
 
     return parser.parse_args()
 
